@@ -1,0 +1,500 @@
+//PROGRAMACION FUENTE RITMICA
+
+
+// --- Bibliotecas Auxiliares ---
+#include <LiquidCrystal.h>                              //Biblioteca para o display LCD
+
+// --- Mapeamiento de Hardware ---
+#define butUp    13                                     //Botón para seleccionar pantalla arriba 
+#define butDown  12                                     //Botón para seleccionar pantalla abajo
+#define butP     11                                     //boton para encender bomba 1
+#define butM     10                                      //boton para encender bomba 2
+#define butT     22                                       //boton para encender bomba 3
+#define butS     24                                        //boton para encender bomba 4
+#define bomba1    4                                     //Salída para bomba 1 (control manual)
+#define bomba2    5                                     //Salída para bomba 2
+#define bomba3    6                                     //salida para bomba 3 
+#define bomba4    7                                     //salida para bomba 4
+
+
+int leds[]={1,2,3,4,5,6,7,8,9};                  //declarar pines de salida 
+long salida;                                     //variable para el manejo de la señal analoga del sensor de sonido
+long salida1;                                    //variable para el manejo de la señal analoga del cable auxiliar
+int sonido=A5;                                   //entrada analoga del sensor de sonido
+int sonido1=A4;                                  //entrada analoga para el cable auxiliar
+char dato;                                       //variable donde se guardan los datos analogos de sonido
+int pausa = 500;    
+// --- Prototipo de las funciones auxiliares ---
+void changeMenu();                                      //Función para modificar el menú actual
+void dispMenu();                                        //Función para mostrar el menú actual
+void acelerometro();                                       //Función de menú1,acelerometro
+void vumetro();                                     //Función del menú2, vumetro
+void controlmanual();                                          //Función del menú3, accionamiento manual de las bombas
+void vumetro1();                                           //Función del menú4 vumetro con cable auxiliar
+// --- Variables globales ---
+char menu = 0x01;                                       //Variable para seleccionar el menú
+char set1 = 0x00, set2 = 0x00, set3 = 0x00, set4 = 0x00 ;                          //Control de las lámparas
+boolean t_butUp, t_butDown, t_butP, t_butM, t_butT, t_butS;             //variables booleanas para almacenar el estado de los botones
+// --- Hardware do LCD ---
+LiquidCrystal disp(16,  //RS 
+                   17,  //EN 
+                   18,  //D4 
+                   19,  //D5 
+                   20,  //D6 
+                   21); //D7 
+
+// --- Configurações Iniciais ---
+void setup()
+{
+  disp.begin(16,2);                                      //Inicializa LCD 16 x 2
+  
+  for(char i=9; i<14; i++) pinMode(i, INPUT_PULLUP);     //Entrada para los botones (digitales 9 a 12) com pull-ups internos
+  for(char i=22; i<25; i++) pinMode(i, INPUT_PULLUP);
+  
+  t_butUp   = 0x00;                                      //limpia variable de boton Up
+  t_butDown = 0x00;                                      //limpia variable de boton Down
+  t_butP    = 0x00;                                      //limpia variable de boton P
+  t_butM    = 0x00;                                      //limpia variable de boton M
+  t_butT    = 0x00;                                      //limpia variable de boton T
+  t_butS    = 0x00;                                      //limpia variable de boton S
+  
+ 
+  pinMode(leds[0],OUTPUT);                                //salidas para las bombas y los leds
+  pinMode(leds[1],OUTPUT);
+  pinMode(leds[2],OUTPUT);
+  pinMode(leds[3],OUTPUT);
+  pinMode(leds[4],OUTPUT);
+  pinMode(leds[5],OUTPUT);
+  pinMode(leds[6],OUTPUT);
+  pinMode(leds[7],OUTPUT);
+  pinMode(leds[8],OUTPUT);
+  pinMode(leds[9],OUTPUT);
+
+  digitalWrite(leds[0],LOW);                                //salidas para las bombas y los leds
+  digitalWrite(leds[1],LOW);
+  digitalWrite(leds[2],LOW);
+  digitalWrite(leds[3],LOW);
+  digitalWrite(leds[4],LOW);
+  digitalWrite(leds[5],LOW);
+  digitalWrite(leds[6],LOW);
+  digitalWrite(leds[7],LOW);
+  digitalWrite(leds[8],LOW);
+  digitalWrite(leds[9],LOW);
+
+  Serial.begin(9600);    //inicia comunicacion serial para el bluethoot (9600 baudios)
+
+} //fin setup
+
+
+// --- Loop Infinito ---
+void loop()
+{
+    
+   
+   changeMenu();
+   dispMenu();
+
+} //fin loop
+
+
+void changeMenu()                                       //control de pulsadores del menu
+{
+   if(!digitalRead(butUp))   t_butUp   = 0x01;          //Botón Up presionado? (estado low)
+   if(!digitalRead(butDown)) t_butDown = 0x01;          //Botón Down presionado? (estado low) 
+      
+   if(digitalRead(butUp) && t_butUp)                    //Botón Up suelto y condicion establecida?
+   {                                                 
+      t_butUp = 0x00;                                   //Limpia variable
+      
+      disp.clear();                                     //Limpia display
+      menu++;                                           //Incrementa menu
+      
+      if(menu > 0x04) menu = 0x01;                      //Si el menú es mayor que 4, vuelve a ser 1
+   
+   } //fin butUp
+   
+   if(digitalRead(butDown) && t_butDown)                //Botón Down suelto y condicion establecida?
+   {                                                
+      t_butDown = 0x00;                                 //limpia variable
+      
+      disp.clear();                                     //Limpia display
+      menu--;                                           //Decrementa menu
+      
+      if(menu < 0x01) menu = 0x04;                      //Se menu menor que 1, vuelve a ser 4
+   
+   } //fin butDown   
+
+} //fin changeMenu
+
+void dispMenu()                                         //Muestra el menú actual
+{
+    switch(menu)                                        //Control de varibles del menu  
+    {
+       case 0x01:                                       //Caso 1
+             acelerometro();                               //Llama a la función de acelerometro
+             
+             break;                                     //break
+       case 0x02:                                       //Caso 2
+             vumetro();                             //Llama la función del vumetro con sensor
+             
+             break;                                     //break
+       case 0x03:                                       //Caso 3
+             controlmanual();                                  //Llama función para el accionamiento maual de bombas
+            
+             break;                                     //break
+       case 0x04:                                       //Caso 4
+             vumetro1();                                   //llama la funcion del vumetro con cable auxiliar
+             
+             break;                                     //break
+    
+    } //fin switch menu
+
+} //fin dispMenu
+
+void acelerometro()                                        //acelerometro
+{
+    
+   disp.setCursor(0,0);                                 //Posiciona cursor en columna 1, fila 1
+   disp.print("ACELEROMETRO");                           //Imprime mensagem
+   disp.setCursor(0,1);                                 //Posiciona cursor en columna 1, fila 2
+   
+   // Desarrollar una función de fecha y hora ...
+   
+   disp.print("ACTIVE ");                       
+
+      
+    
+    while (Serial.available())    //inicia blucle con comunicacion serial
+  {
+    char dato= Serial.read();     //lee el dato serial enviado atraves del modulo bluethoot del celular
+    
+    switch(dato)        
+    {
+    case 'A':       //llama a la funcion "A" que es adelante
+      {
+        digitalWrite(2, LOW);
+        digitalWrite(3, HIGH);
+        digitalWrite(4, LOW);
+        digitalWrite(5, LOW);
+        digitalWrite(6, LOW);
+        digitalWrite(7, LOW);
+        digitalWrite(8, HIGH);
+        break;
+      }
+    case 'B':    //llama la funcion "B" atras
+      {
+        digitalWrite(2, LOW);
+        digitalWrite(3, LOW);
+        digitalWrite(4, HIGH);
+        digitalWrite(5, LOW);
+        digitalWrite(6, LOW);
+        digitalWrite(7, HIGH);
+        digitalWrite(8, LOW);
+        break;        
+      }
+      case 'C':   //llama la funcion "C" que es derecha
+      {
+        digitalWrite(2, LOW);
+        digitalWrite(3, LOW);
+        digitalWrite(4, LOW);
+        digitalWrite(5, HIGH);
+        digitalWrite(6, LOW);
+        digitalWrite(7, HIGH);
+        digitalWrite(8, LOW);
+        break;
+      }
+      case 'D':    //llama la funcion "D" que es izquierda 
+      {
+        digitalWrite(2, LOW);
+        digitalWrite(3, LOW);
+        digitalWrite(4, LOW);
+        digitalWrite(5, HIGH);
+        digitalWrite(6, HIGH);
+        digitalWrite(7, HIGH);
+        digitalWrite(8, LOW);
+        break;
+      }
+      case 'E':    //funcion "E" que es celular en ninguna direccion o reposo
+      {
+        digitalWrite(2, LOW);
+        digitalWrite(3, LOW);
+        digitalWrite(4, LOW);
+        digitalWrite(5, LOW);
+        digitalWrite(6, LOW);
+        digitalWrite(7, LOW);
+        digitalWrite(8, LOW);
+        break;
+      }
+      
+    }       
+  }}
+
+ //fin de acelerometro
+
+void vumetro()                                      //vumetro (menu2)
+{
+   disp.setCursor(0,0);                                 //Posiciona cursor en columna 1, fila 1
+   disp.print("VUMETRO");                           //Imprime mensagem
+   disp.setCursor(1,1);                                 //Posiciona cursor na columna 2, fila 2
+   
+   // Desarrollar una función de fecha y hora ...
+   
+   disp.print("DETEC. ONDA");                            
+        
+    
+    salida=map(analogRead(sonido),0,700,2,9);  //leer variable analoga de entrada A5 "sonido" y reducido por el codigo map para mas facil manejo      
+
+
+    if(salida==2)   // si salida es = a 2 se encienden los leds 2   
+   {for(int k=2;k<=3;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=2;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+else if(salida==3) // si salida = 3 se encienden los leds de 2 a 3
+   {for(int k=2;k<=4;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=3;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+else if(salida==4)    // si salida = 4 se encienden los pines de 2 a 4 
+   {for(int k=2;k<=5;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=4;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+else if(salida==5)   //si salida = 5 se encienden los pines de 2 a 5 
+   {for(int k=2;k<=6;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=5;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+else if(salida==6)   // si salida = 6 se encienden los pines de 2 a 6 
+   {for(int k=2;k<=7;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=6;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+else if(salida==7)  //si la salida es  = 7 enciende los pines de 2 a 7 
+   {for(int k=2;k<=8;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=7;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+else if(salida==8)    // si la salida es = 8 encienden los pines de 2 a 8
+   {for(int k=2;k<=9;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=8;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+
+else if(salida==9)  //si la salida es  = 9 enciende los pines de 2 a 9
+   {for(int k=2;k<=9;k++)
+    {digitalWrite(leds[k],HIGH);}
+    delay(50);
+   
+   }}
+ //end temperatura()
+ 
+void controlmanual()                                           //controlmanual (menu3)
+{
+  
+   disp.setCursor(0,0);                                 //Posiciona cursor en columna 1, fila 1
+   disp.print("Acionar bombas");                      //Imprime mensage en menu 3
+ 
+  
+   if(!digitalRead(butP))    t_butP    = 0x01;          //Boton P presionado? (estado low)
+   if(!digitalRead(butM))    t_butM    = 0x01;          //Boton M presionado? (estado low) 
+   if(!digitalRead(butT))    t_butT    = 0x01;          //Boton T presionado? (estado low) 
+   if(!digitalRead(butS))    t_butS    = 0x01;          //Boton S presionado? (estado low)
+   
+   if(digitalRead(butP) && t_butP)                      //boton P fue soltado?
+   {                                                   
+      t_butP = 0x00;                                    //Limpia variable
+      
+      set1++;                                           //Incrementa set1
+      
+      if(set1 > 2) set1 = 0x01;                         //es mayor que 2, vuelve a ser 1
+      
+      switch(set1)                                      //Control de set1
+      {
+          case 0x01:                                    //Caso 1
+                disp.setCursor(0,1);                    //Posiciona cursor en columna 1, fila 2
+                disp.print("L1 on ");                   //Imprime mensage
+                digitalWrite(bomba1, HIGH);              //enciende bomba 1
+                break;                                  //Break
+          case 0x02:                                    //Caso 2
+                disp.setCursor(0,1);                    //Posiciona cursor en columna 1, fila 2
+                disp.print("L1 off");                   //Imprime mensage
+                digitalWrite(bomba1, LOW);               //apaga bomba 1
+                break;                                  //Break
+      
+      } //end switch set1
+   
+   } //end butP
+   
+   if(digitalRead(butM) && t_butM)                      //boton fue soltado?
+   {                                                   
+      t_butM = 0x00;                                    //Limpia variable
+      
+      set2++;                                           //Incrementa set2
+      
+      if(set2 > 2) set2 = 0x01;                         //es mayor que 2, vuelve a ser 1
+      
+      switch(set2)                                      //Control de set2
+      {
+          case 0x01:                                    //Caso 1
+                disp.setCursor(8,1);                    //Posiciona cursor na coluna 8, fila 2
+                disp.print("L2 on ");                   //Imprime mensage
+                digitalWrite(bomba2, HIGH);              //enciende bomba 2
+                break;                                  //Break
+          case 0x02:                                    //Caso 2
+                disp.setCursor(8,1);                    //Posiciona cursor en columna 8, fila 2
+                disp.print("L2 off");                   //Imprime mensage
+                digitalWrite(bomba2, LOW);               //apaga bomba 2
+                break;                                  //Break
+      
+      } //end switch set1
+   
+   } //fin butM
+
+   if(digitalRead(butT) && t_butT)                      //boton T fue soltado?
+   {                                                   
+      t_butT = 0x00;                                    //Limpia variable
+      
+      set3++;                                           //Incrementa set3
+      
+      if(set3 > 2) set3 = 0x01;                         //es mayor a 2, vuelve a ser 1 
+      
+      switch(set3)                                      //Control de set3
+      {
+          case 0x01:                                    //Caso 1
+                disp.setCursor(0,1);                    //Posiciona cursor de columna 1, fila 2
+                disp.print("L2 on ");                   //Imprime mensage
+                digitalWrite(bomba3, HIGH);              //enciende bomba 3
+                break;                                  //Break
+          case 0x02:                                    //Caso 2
+                disp.setCursor(0,1);                    //Posicion de cursor colimna 1, fila 2
+                disp.print("L2 off");                   //Imprime mensage
+                digitalWrite(bomba3, LOW);               //apaga bomba 3
+                break;                                  //Break
+      
+      } //fin switch set1
+   
+   }
+
+   if(digitalRead(butS) && t_butS)                      //boton fue soltado?
+   {                                                
+      t_butS = 0x00;                                    //Limpia variable
+      
+      set4++;                                           //Incrementa set4
+      
+      if(set4 > 2) set4 = 0x01;                         //es mayor que  2,vuelve a ser 1
+      
+      switch(set4)                                      //Controle do set1
+      {
+          case 0x01:                                    //Caso 1
+                disp.setCursor(0,1);                    //Posiciona cursor en columna 1, fila 2
+                disp.print("L1 on ");                   //Imprime mensage
+                digitalWrite(bomba4, HIGH);              //enciende bomba 4
+                break;                                  //Break
+          case 0x02:                                    //Caso 2
+                disp.setCursor(0,1);                    //Posiciona cursor na columna 1, fila 2
+                disp.print("L1 off");                   //Imprime mensage
+                digitalWrite(bomba4, LOW);               //apaga bomba 4
+                break;                                  //Break
+      
+      } //fin switch set1
+   
+   }
+
+
+} //fin controlmanual
+
+void vumetro1()                                            //vumetro1
+{
+   disp.setCursor(0,0);                                 //Posiciona cursor en columna 1, fila 1
+   disp.print("VUMETRO");                           //Imprime mensagem
+   disp.setCursor(1,1);                                 //Posiciona cursor en columna 2, fila 2
+   
+   
+   
+   disp.print("DETEC. ONDAS PC");                               
+
+   
+        
+    
+    salida1=map(analogRead(sonido1),0,700,2,9);    //leer variable analoga de entrada A5 "sonido" y reducido por el codigo map para mas facil manejo 
+
+
+    if(salida1==2)      // si salida1 es 2 se encienden los pines 2 
+   {for(int k=2;k<=3;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=2;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   }
+else if(salida1==3)   // si salida1 es 3 se encienden los pines de 2 a 3 
+   {for(int k=2;k<=4;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=3;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(60);
+   }
+else if(salida1==4)    // si salida1 es 4 se encienden los pines de 2 a 4 
+   {for(int k=2;k<=5;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=4;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(50);
+   } 
+else if(salida1==5)      // si salida1 es 5 se encienden los pines de 2 a 5 
+   {for(int k=2;k<=6;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=5;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(40);
+   }
+else if(salida1==6)       // si salida1 es 6 se encienden los pines de 2 a 6 
+   {for(int k=2;k<=7;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=6;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(20);
+   }
+else if(salida1==7)     // si salida1 es 7 se encienden los pines de 2 a 7 
+   {for(int k=2;k<=8;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=7;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(20);
+   } 
+else if(salida1==8)       // si salida1 es 8 se encienden los pines de 2 a 8 
+   {for(int k=2;k<=9;k++)
+    {digitalWrite(leds[k],HIGH);}
+    for(int k=8;k<=9;k++)
+    {digitalWrite(leds[k],LOW);}
+    delay(20);
+   }
+
+else if(salida1==9)         // si salida1 es 9 se encienden los pines de 2 a 9 
+   {for(int k=2;k<=9;k++)
+    {digitalWrite(leds[k],HIGH);}
+    delay(30);
+   
+   }}
+ //fin menu4
+
+
+
+
+
+
+
